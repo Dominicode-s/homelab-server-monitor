@@ -10,7 +10,7 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/agents/auth', [AuthController::class, 'authenticate']);
 
     // Protected agent routes
-    Route::middleware('api.agent')->group(function (): void {
+    Route::middleware(\App\Http\Middleware\AuthenticateAgent::class)->group(function (): void {
         // Server info registration/update
         Route::post('/servers', [AgentServerController::class, 'registerOrUpdate']);
 

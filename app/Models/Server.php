@@ -90,11 +90,8 @@ class Server extends Model
 
     public function isOnline(): bool
     {
-        if ($this->status === 'online') {
-            $offlineThreshold = config('sentinel.security.offline_threshold_seconds', 120);
-            return $this->last_seen_at?->isAfter(now()->subSeconds($offlineThreshold)) ?? false;
-        }
-        return false;
+        $offlineThreshold = config('sentinel.security.offline_threshold_seconds', 120);
+        return $this->last_seen_at?->isAfter(now()->subSeconds($offlineThreshold)) ?? false;
     }
 
     public function isOffline(): bool

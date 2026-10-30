@@ -10,6 +10,8 @@ class MetricMemory extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'metrics_memory';
 
     protected $fillable = [

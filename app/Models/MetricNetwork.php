@@ -10,6 +10,8 @@ class MetricNetwork extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'metrics_network';
 
     protected $fillable = [

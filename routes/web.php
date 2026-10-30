@@ -10,6 +10,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+// Logout (accessible by both guests and authenticated users)
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
 // Authentication routes
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -33,5 +36,4 @@ Route::middleware('auth')->group(function (): void {
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
-    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

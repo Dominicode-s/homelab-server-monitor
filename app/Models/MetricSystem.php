@@ -10,6 +10,8 @@ class MetricSystem extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'metrics_system';
 
     protected $fillable = [

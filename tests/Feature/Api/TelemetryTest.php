@@ -127,6 +127,7 @@ class TelemetryTest extends TestCase
         $payload = $this->getValidPayload([
             'server_info' => [
                 'hostname' => $newHostname,
+                'os' => 'Ubuntu 22.04 LTS',
             ],
         ]);
 

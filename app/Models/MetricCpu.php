@@ -10,6 +10,8 @@ class MetricCpu extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'metrics_cpu';
 
     protected $fillable = [

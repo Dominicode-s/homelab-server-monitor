@@ -23,7 +23,7 @@ class AuthenticatedSessionController extends Controller
         ]);
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            return back()->withErrors([
+            return redirect()->route('login')->withErrors([
                 'email' => 'The provided credentials do not match our records.',
             ])->withInput($request->only('email'));
         }

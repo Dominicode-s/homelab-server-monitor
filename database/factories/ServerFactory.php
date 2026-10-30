@@ -18,7 +18,7 @@ class ServerFactory extends Factory
             'architecture' => $this->faker->randomElement(['x86_64', 'aarch64']),
             'agent_version' => '1.0.0',
             'status' => $this->faker->randomElement(['online', 'offline', 'degraded']),
-            'last_seen_at' => $this->faker->optional()->dateTimeBetween(-1, 0),
+            'last_seen_at' => now()->subSeconds($this->faker->numberBetween(0, 60)),
         ];
     }
 }

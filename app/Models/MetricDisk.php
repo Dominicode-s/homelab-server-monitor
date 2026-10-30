@@ -10,6 +10,8 @@ class MetricDisk extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'metrics_disk';
 
     protected $fillable = [

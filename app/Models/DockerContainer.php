@@ -10,6 +10,8 @@ class DockerContainer extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $fillable = [
         'server_id',
         'collected_at',

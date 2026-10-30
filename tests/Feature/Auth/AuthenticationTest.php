@@ -59,7 +59,7 @@ class AuthenticationTest extends TestCase
             'password' => 'wrong-password',
         ]);
 
-        $response->assertBack();
+        $response->assertRedirect('/login');
         $response->assertSessionHasErrors('email');
     }
 }
