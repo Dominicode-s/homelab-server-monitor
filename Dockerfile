@@ -34,20 +34,20 @@ COPY . .
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Setup storage permissions
-RUN chmod -R 755 storage bootstrap/cache
-
-# Copy Nginx config
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-
-# Copy Supervisor config
-COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Create SQLite database directory
-RUN mkdir -p /var/www/html/storage/database && \
+# Create Laravel storage/framework directories with correct ownership
+RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache,testing} /var/www/html/storage/database && \
+    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+    chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache && \
     touch /var/www/html/storage/database/database.sqlite && \
     chmod 644 /var/www/html/storage/database/database.sqlite
 
+# Copy Nginx config
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Copy Supervisor config (Alpine expects it at /etc/supervisord.conf)
+COPY docker/supervisor/supervisord.conf /etc/supervisord.conf
+
 EXPOSE 80
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
