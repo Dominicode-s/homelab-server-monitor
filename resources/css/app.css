@@ -1,0 +1,28 @@
+/* Tailwind CSS entry point */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+    body {
+        @apply bg-dashboard-bg text-dashboard-text antialiased;
+    }
+}
+
+/* Custom scrollbar */
+@layer components {
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        @apply bg-dashboard-bg;
+    }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-dashboard-border rounded;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-dashboard-muted;
+    }
+}

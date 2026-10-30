@@ -1,0 +1,23 @@
+[Unit]
+Description=Homelab Sentinel Monitoring Agent
+Documentation=https://github.com/homelab/sentinel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/homelab-sentinel/sentinel_agent.py --config /etc/homelab-sentinel/config.json
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/etc/homelab-sentinel /var/log/homelab-sentinel
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

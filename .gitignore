@@ -1,0 +1,45 @@
+# Homelab Sentinel - Exclusions
+
+# Composer
+/vendor/
+/node_modules/
+
+# Environment
+.env
+.env.backup
+.env.production
+
+# Storage
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/bootstrap/cache/*
+
+# Database
+*.sqlite
+!/storage/database/database.sqlite
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Build artifacts
+/public/build/

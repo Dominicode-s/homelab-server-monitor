@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: homelab-sentinel
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - ./storage:/var/www/html/storage
+      - ./storage/database:/var/www/html/storage/database
+    environment:
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/html/storage/database/database.sqlite
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@localhost}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+    depends_on: []
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
