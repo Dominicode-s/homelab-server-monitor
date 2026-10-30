@@ -1,7 +1,22 @@
 # Homelab Sentinel — Progress Tracker
 
+## Status
+**COMPLETE** — All milestones implemented, 30/30 tests passing, merged to `main`.
+
 ## Current Milestone
-Milestone 6 — Integration and Finalisation (complete)
+Complete — all 6 milestones delivered.
+
+## Deployment Checklist
+- [x] Code fully committed on `main` branch
+- [x] All 30 tests passing (58 assertions)
+- [ ] Run `composer install` on target machine
+- [ ] Run `npm ci && npm run build` for frontend assets
+- [ ] Copy `.env.example` → `.env` and set `APP_KEY`
+- [ ] Run `php artisan migrate --seed`
+- [ ] Deploy via Docker Compose or PHP built-in server
+- [ ] Configure HTTPS (reverse proxy or certbot)
+- [ ] Set up cron jobs for scheduled tasks
+- [ ] Install agents on target servers
 
 ## Completed
 ### Milestone 1 — Project Foundation ✅
