@@ -31,13 +31,15 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
+# Create Laravel cache/storage directories before composer install
+RUN mkdir -p /var/www/html/bootstrap/cache /var/www/html/storage/framework/{sessions,views,cache,testing} /var/www/html/storage/database && \
+    chmod -R 755 /var/www/html/bootstrap/cache /var/www/html/storage
+
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Create Laravel storage/framework directories with correct ownership
-RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache,testing} /var/www/html/storage/database && \
-    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
-    chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache && \
+# Set correct ownership after composer install
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
     touch /var/www/html/storage/database/database.sqlite && \
     chmod 644 /var/www/html/storage/database/database.sqlite
 
