@@ -11,6 +11,26 @@
         </button>
     </div>
 
+    <!-- Search & Filter Bar -->
+    <form method="GET" action="{{ route('servers.index') }}" class="flex flex-wrap gap-3">
+        <div class="flex-1 min-w-[200px]">
+            <input type="text" name="search" value="{{ request('search') }}"
+                placeholder="Search by hostname, name, or description..."
+                class="w-full px-3 py-2 bg-dashboard-bg border border-dashboard-border rounded-lg text-dashboard-text focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <select name="status"
+            class="px-3 py-2 bg-dashboard-bg border border-dashboard-border rounded-lg text-dashboard-text focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="">All Statuses</option>
+            <option value="online" {{ request('status') === 'online' ? 'selected' : '' }}>Online</option>
+            <option value="degraded" {{ request('status') === 'degraded' ? 'selected' : '' }}>Degraded</option>
+            <option value="offline" {{ request('status') === 'offline' ? 'selected' : '' }}>Offline</option>
+        </select>
+        <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg">Filter</button>
+        @if(request('search') || request('status'))
+            <a href="{{ route('servers.index') }}" class="text-dashboard-muted hover:text-dashboard-text px-3 py-2">Clear</a>
+        @endif
+    </form>
+
     <!-- Server List -->
     <div class="bg-dashboard-surface rounded-xl border border-dashboard-border overflow-hidden">
         <table class="min-w-full divide-y divide-dashboard-border">
@@ -33,8 +53,8 @@
                             <div class="text-sm text-dashboard-muted">{{ $server->hostname }}</div>
                         </td>
                         <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $server->isOnline() ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' }}">
-                                <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $server->isOnline() ? 'bg-green-400' : 'bg-red-400' }}"></span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $server->isOnline() ? ($server->isDegraded() ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400') : 'bg-red-500/20 text-red-400' }}">
+                                <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $server->isOnline() ? ($server->isDegraded() ? 'bg-yellow-400 animate-pulse' : 'bg-green-400') : 'bg-red-400' }}"></span>
                                 {{ ucfirst($server->status) }}
                             </span>
                         </td>
@@ -68,8 +88,9 @@
                         <td class="px-6 py-4 text-sm text-dashboard-muted">
                             {{ $server->last_seen_at ? $server->last_seen_at->diffForHumans() : 'Never' }}
                         </td>
-                        <td class="px-6 py-4 text-right text-sm font-medium">
-                            <a href="{{ route('servers.show', $server) }}" class="text-primary-400 hover:text-primary-300 mr-3">View</a>
+                        <td class="px-6 py-4 text-right text-sm font-medium space-x-2">
+                            <a href="{{ route('servers.show', $server) }}" class="text-primary-400 hover:text-primary-300">View</a>
+                            <a href="{{ route('servers.edit', $server) }}" class="text-yellow-400 hover:text-yellow-300">Edit</a>
                             <form method="POST" action="{{ route('servers.destroy', $server) }}" class="inline" onsubmit="return confirm('Are you sure?')">
                                 @csrf
                                 @method('DELETE')

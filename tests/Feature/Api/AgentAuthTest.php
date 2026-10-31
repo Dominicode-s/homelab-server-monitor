@@ -21,7 +21,7 @@ class AgentAuthTest extends TestCase
     public function test_agent_authentication_with_invalid_token(): void
     {
         $response = $this->postJson('/api/v1/agents/auth', [
-            'token' => 'invalid-token',
+            'token' => 'invalid-token-xxxxxxxx',
         ]);
 
         $response->assertStatus(401);
@@ -31,14 +31,12 @@ class AgentAuthTest extends TestCase
     public function test_agent_authentication_with_revoked_token(): void
     {
         $server = Server::factory()->create(['hostname' => 'test-host']);
-        $credential = Credential::factory()->create([
-            'server_id' => $server->id,
-            'token' => 'valid-token',
-            'revoked' => true,
-        ]);
+        $plainToken = Credential::generateToken();
+        $credential = Credential::where('server_id', $server->id)->first();
+        $credential->revoke();
 
         $response = $this->postJson('/api/v1/agents/auth', [
-            'token' => 'valid-token',
+            'token' => $plainToken,
         ]);
 
         $response->assertStatus(401);
@@ -47,18 +45,29 @@ class AgentAuthTest extends TestCase
     public function test_agent_can_authenticate_with_valid_token(): void
     {
         $server = Server::factory()->create(['hostname' => 'test-host']);
-        $token = Credential::generateToken();
-        Credential::factory()->create([
-            'server_id' => $server->id,
-            'token' => $token,
-        ]);
+        $plainToken = Credential::generateToken();
 
         $response = $this->postJson('/api/v1/agents/auth', [
-            'token' => $token,
+            'token' => $plainToken,
         ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('authenticated', true)
             ->assertJsonPath('server_id', $server->id);
+    }
+
+    public function test_token_hash_not_exposed_in_responses(): void
+    {
+        $server = Server::factory()->create(['hostname' => 'test-host']);
+        $plainToken = Credential::generateToken();
+
+        $response = $this->postJson('/api/v1/agents/auth', [
+            'token' => $plainToken,
+        ]);
+
+        $response->assertStatus(200);
+        // Response should not contain the full token
+        $body = $response->getContent();
+        $this->assertStringNotContainsString(substr($plainToken, 8), $body);
     }
 }

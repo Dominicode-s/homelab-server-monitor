@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Admin;
+use App\Models\AlertRule;
 
 class DatabaseSeeder extends Seeder
 {
@@ -47,10 +48,17 @@ class DatabaseSeeder extends Seeder
                 'threshold' => 2,
                 'duration_minutes' => 2,
             ],
+            [
+                'name' => 'Service Down',
+                'description' => 'A monitored systemd service has stopped or failed',
+                'type' => 'service_down',
+                'threshold' => null,
+                'duration_minutes' => 0,
+            ],
         ];
 
         foreach ($defaults as $rule) {
-            \App\Models\AlertRule::firstOrCreate(
+            AlertRule::firstOrCreate(
                 ['name' => $rule['name']],
                 $rule
             );

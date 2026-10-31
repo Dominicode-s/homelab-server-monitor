@@ -18,11 +18,13 @@ class AuthenticateAgent
             return response()->json(['error' => 'Agent token required'], 401);
         }
 
-        $credential = Credential::with('server')
-            ->where('token', $token)
+        // Find credential by prefix for efficient lookup, then verify hash
+        $prefix = substr($token, 0, 8);
+        $credential = Credential::where('token_prefix', $prefix)
+            ->with('server')
             ->first();
 
-        if (! $credential || ! $credential->isValid()) {
+        if (! $credential || ! $credential->verifyToken($token)) {
             return response()->json(['error' => 'Invalid or revoked agent credentials'], 401);
         }
 

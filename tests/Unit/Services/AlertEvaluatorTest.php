@@ -60,6 +60,16 @@ class AlertEvaluatorTest extends TestCase
                 'is_enabled' => true,
             ]
         );
+
+        AlertRule::firstOrCreate(
+            ['name' => 'Service Down'],
+            [
+                'type' => 'service_down',
+                'threshold' => null,
+                'duration_minutes' => 0,
+                'is_enabled' => true,
+            ]
+        );
     }
 
     public function test_high_cpu_triggers_alert(): void

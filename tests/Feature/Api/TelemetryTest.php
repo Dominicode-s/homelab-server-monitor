@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\Server;
 use App\Models\Credential;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 
 class TelemetryTest extends TestCase
 {
@@ -68,10 +69,8 @@ class TelemetryTest extends TestCase
     public function test_agent_can_submit_telemetry(): void
     {
         $server = Server::factory()->create(['hostname' => 'existing-server']);
-        $credential = Credential::factory()->create([
-            'server_id' => $server->id,
-            'token' => 'test-token',
-        ]);
+        $plainToken = Credential::generateToken();
+        $credential = Credential::where('server_id', $server->id)->first();
 
         $payload = $this->getValidPayload([
             'server_info' => [
@@ -79,7 +78,7 @@ class TelemetryTest extends TestCase
             ],
         ]);
 
-        $response = $this->withHeader('X-Agent-Token', 'test-token')
+        $response = $this->withHeader('X-Agent-Token', $plainToken)
             ->postJson('/api/v1/telemetry', $payload);
 
         $response->assertStatus(200)
@@ -110,19 +109,7 @@ class TelemetryTest extends TestCase
     public function test_new_server_is_created_on_telemetry(): void
     {
         $newHostname = 'brand-new-server-' . uniqid();
-        $token = Credential::generateToken();
-        $serverId = \DB::table('servers')->insertGetId([
-            'hostname' => $newHostname,
-            'status' => 'offline',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        \DB::table('credentials')->insert([
-            'server_id' => $serverId,
-            'token' => $token,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $plainToken = Credential::generateToken();
 
         $payload = $this->getValidPayload([
             'server_info' => [
@@ -131,7 +118,7 @@ class TelemetryTest extends TestCase
             ],
         ]);
 
-        $response = $this->withHeader('X-Agent-Token', $token)
+        $response = $this->withHeader('X-Agent-Token', $plainToken)
             ->postJson('/api/v1/telemetry', $payload);
 
         $response->assertStatus(200);
@@ -144,13 +131,9 @@ class TelemetryTest extends TestCase
 
     public function test_invalid_payload_is_rejected(): void
     {
-        $server = Server::factory()->create();
-        $credential = Credential::factory()->create([
-            'server_id' => $server->id,
-            'token' => 'test-token',
-        ]);
+        $plainToken = Credential::generateToken();
 
-        $response = $this->withHeader('X-Agent-Token', 'test-token')
+        $response = $this->withHeader('X-Agent-Token', $plainToken)
             ->postJson('/api/v1/telemetry', [
                 'server_info' => [
                     'hostname' => '',  // Invalid - empty
@@ -162,17 +145,13 @@ class TelemetryTest extends TestCase
 
     public function test_cpu_percent_must_be_between_0_and_100(): void
     {
-        $server = Server::factory()->create();
-        $credential = Credential::factory()->create([
-            'server_id' => $server->id,
-            'token' => 'test-token',
-        ]);
+        $plainToken = Credential::generateToken();
 
         $payload = $this->getValidPayload([
             'cpu' => ['utilisation_percent' => 150.0],
         ]);
 
-        $response = $this->withHeader('X-Agent-Token', 'test-token')
+        $response = $this->withHeader('X-Agent-Token', $plainToken)
             ->postJson('/api/v1/telemetry', $payload);
 
         $response->assertStatus(422);
