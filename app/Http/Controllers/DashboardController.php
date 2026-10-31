@@ -24,9 +24,9 @@ class DashboardController extends Controller
             ->get();
 
         $servers = Server::with([
-            'metricsCpu.latestCpuMetric',
-            'metricsMemory.latestMemoryMetric',
-            'metricsDisk.latestDiskMetrics',
+            'latestCpuMetric',
+            'latestMemoryMetric',
+            'latestDiskMetrics',
         ])
             ->orderBy('friendly_name')
             ->get();

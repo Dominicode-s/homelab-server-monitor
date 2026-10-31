@@ -170,6 +170,16 @@ Fixed 5 issues preventing Docker deployment:
 5. **Volume mounts**: `./storage:/var/www/html/storage` replaced the entire storage dir including framework subdirs. Changed to granular mounts per subdir.
 6. **Health check**: Alpine's busybox `wget --spider` doesn't work reliably. Switched to `curl -sf`.
 
+## Runtime Bugs Fixed (Post-Implementation Verification)
+1. **Nested eager loading invalid**: `'metricsCpu.latestCpuMetric'` tried to load a relationship on each MetricCpu instance, but `latestCpuMetric` is defined on Server, not MetricCpu. Fixed to use direct relationships (`'latestCpuMetric'`).
+2. **Missing PHP helper functions**: `formatUptime()` and `formatBytes()` were only defined as JavaScript functions in Blade templates but called as PHP helpers server-side. Added both as global PHP helpers in `bootstrap/app.php`.
+3. **SQLite database read-only**: Database file created with 644 permissions owned by UID 1000, but Laravel runs as www-data (UID 82). Fixed by setting 666 permissions.
+4. **APP_DEBUG not propagating**: Docker-compose sets `APP_ENV=production` but `APP_DEBUG` wasn't set as env var, causing empty debug output. Added `APP_DEBUG=true` to docker-compose.yml environment block.
+5. **Config caching conflict**: `config:cache` in Dockerfile prevented runtime env var overrides from docker-compose. Changed strategy to only cache views and routes.
+6. **Vite manifest missing**: Production build lacked `public/build/manifest.json`. Added nodejs+npm to Dockerfile and `npm install && npm run build` step.
+7. **Database file missing**: Volume mount `./storage/database/` was empty on host. Created `database.sqlite` file on host.
+8. **Bootstrap/cache directory**: Composer install failed because bootstrap/cache didn't exist. Reordered Dockerfile to create dirs before composer install.
+
 ## Recommended Next Improvements
 1. Add WebSocket support for real-time dashboard updates (currently polling)
 2. Implement metric aggregation/hourly averages for long-term storage efficiency

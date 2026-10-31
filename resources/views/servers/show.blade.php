@@ -32,7 +32,10 @@
         <div class="bg-dashboard-surface rounded-xl p-4 border border-dashboard-border">
             <p class="text-xs text-dashboard-muted">Uptime</p>
             <p class="text-xl font-semibold text-white mt-1">
-                {{ $server->metricsSystem->last()?->uptime_seconds ? formatUptime($server->metricsSystem->last()->uptime_seconds) : 'N/A' }}
+                @php
+                    $seconds = $server->metricsSystem->last()?->uptime_seconds;
+                    echo $seconds ? floor($seconds / 86400) . 'd ' . floor(($seconds % 86400) / 3600) . 'h' : 'N/A';
+                @endphp
             </p>
         </div>
         <div class="bg-dashboard-surface rounded-xl p-4 border border-dashboard-border">

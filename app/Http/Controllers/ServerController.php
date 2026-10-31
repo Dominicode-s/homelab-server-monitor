@@ -21,9 +21,9 @@ class ServerController extends Controller
     public function index(): View
     {
         $query = Server::with([
-            'metricsCpu.latestCpuMetric',
-            'metricsMemory.latestMemoryMetric',
-            'metricsDisk.latestDiskMetrics',
+            'latestCpuMetric',
+            'latestMemoryMetric',
+            'latestDiskMetrics',
         ]);
 
         // Search/filter support

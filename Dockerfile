@@ -10,7 +10,9 @@ RUN apk add --no-cache \
     libpng-dev \
     libxml2-dev \
     curl \
-    git
+    git \
+    nodejs \
+    npm
 
 # Install PHP extensions
 RUN docker-php-ext-install \
@@ -38,6 +40,9 @@ RUN mkdir -p /var/www/html/bootstrap/cache /var/www/html/storage/framework/{sess
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+# Install Node.js dependencies and build assets
+RUN npm install --no-audit --no-fund && npm run build
+
 # Set correct ownership after composer install
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
     touch /var/www/html/storage/database/database.sqlite && \
@@ -49,6 +54,9 @@ COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # Copy Supervisor config (Alpine expects it at /etc/supervisord.conf)
 COPY docker/supervisor/supervisord.conf /etc/supervisord.conf
+
+# Cache views and routes (NOT config — docker-compose overrides env vars at runtime)
+RUN php artisan view:cache && php artisan route:cache
 
 EXPOSE 80
 
