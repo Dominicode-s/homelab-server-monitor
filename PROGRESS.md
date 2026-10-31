@@ -202,11 +202,13 @@ Total: **30 test cases** covering authentication, API, models, services, and ale
 4. Change default admin password (default: admin@localhost / changeme)
 
 ## Docker Fixes Applied
-Fixed 4 issues preventing Docker deployment:
+Fixed 5 issues preventing Docker deployment:
 1. **nginx.conf**: Main config had `include /etc/nginx/conf.d/*.conf;` at top level, but `server` blocks are only valid inside `http{}`. Created proper `docker/nginx/nginx.conf`.
 2. **php-fpm socket**: Nginx config pointed to `unix:/run/php/php-fpm.sock` but Alpine's PHP-FPM listens on TCP `127.0.0.1:9000` by default. Changed to TCP.
 3. **supervisor path**: Alpine expects config at `/etc/supervisord.conf`, not `/etc/supervisor/conf.d/supervisord.conf`.
 4. **Storage permissions**: Laravel needs `storage/framework/{sessions,views,cache,testing}` owned by `www-data`. Added `chown -R www-data:www-data` at build time.
+5. **Volume mounts**: `./storage:/var/www/html/storage` replaced the entire storage dir including framework subdirs. Changed to granular mounts per subdir.
+6. **Health check**: Alpine's busybox `wget --spider` doesn't work reliably. Switched to `curl -sf`.
 
 ## Recommended Next Improvements
 1. Add WebSocket support for real-time dashboard updates (currently polling)
