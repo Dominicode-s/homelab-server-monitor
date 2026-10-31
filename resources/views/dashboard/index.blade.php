@@ -146,15 +146,59 @@
 </div>
 
 <script>
-// Auto-refresh every 30 seconds
-setInterval(() => {
-    fetch('{{ route('dashboard') }}', {
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-    })
-    .then(response => response.text())
-    .then(html => {
-        document.querySelector('main').innerHTML = html;
-    });
-}, 30000);
+// Auto-refresh every 30 seconds — partial DOM updates to preserve Alpine state
+async function refreshDashboard() {
+    try {
+        const response = await fetch('{{ route('dashboard') }}', {
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+        });
+        if (!response.ok) return;
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Update stat numbers
+        const statCards = doc.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
+        const currentCards = document.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
+        statCards.forEach((card, i) => {
+            if (currentCards[i]) {
+                const numEl = card.querySelector('.text-3xl');
+                const currentNum = currentCards[i].querySelector('.text-3xl');
+                if (numEl && currentNum) currentNum.textContent = numEl.textContent.trim();
+            }
+        });
+
+        // Update timestamp
+        const tsEl = doc.querySelector('#last-update');
+        if (tsEl) document.getElementById('last-update').textContent = tsEl.textContent.trim();
+
+        // Update server cards
+        const newServerCards = doc.querySelectorAll('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2 > a');
+        const currentServerCards = document.querySelectorAll('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2 > a');
+        newServerCards.forEach((card, i) => {
+            if (currentServerCards[i]) currentServerCards[i].replaceWith(card.cloneNode(true));
+        });
+
+        // Update recent alerts
+        const newAlerts = doc.querySelectorAll('.p-4.space-y-3 > div');
+        const currentAlerts = document.querySelector('.p-4.space-y-3');
+        if (newAlerts.length > 0 && currentAlerts) {
+            currentAlerts.innerHTML = '';
+            newAlerts.forEach(a => currentAlerts.appendChild(a.cloneNode(true)));
+        } else if (newAlerts.length === 0 && currentAlerts) {
+            const emptyMsg = doc.querySelector('.p-4.space-y-3 p');
+            if (emptyMsg) {
+                currentAlerts.innerHTML = '<p class="text-center py-8 text-dashboard-muted text-sm">No alerts. Everything is healthy!</p>';
+            }
+        }
+
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+    } catch (e) {
+        // Silently fail — next interval will retry
+    }
+}
+
+setInterval(refreshDashboard, 30000);
 </script>
 @endsection

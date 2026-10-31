@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\MetricCpu;
+use App\Models\MetricMemory;
 
 class Server extends Model
 {
@@ -99,12 +101,40 @@ class Server extends Model
         return ! $this->isOnline();
     }
 
+    public function isDegraded(): bool
+    {
+        if (! $this->isOnline()) {
+            return false;
+        }
+
+        // Check recent CPU and memory for high usage
+        $recentCpu = MetricCpu::where('server_id', $this->id)
+            ->where('collected_at', '>=', now()->subMinutes(5))
+            ->whereNotNull('utilisation_percent')
+            ->orderBy('collected_at', 'desc')
+            ->first();
+
+        $recentMemory = MetricMemory::where('server_id', $this->id)
+            ->where('collected_at', '>=', now()->subMinutes(5))
+            ->whereNotNull('usage_percent')
+            ->orderBy('collected_at', 'desc')
+            ->first();
+
+        $cpuThreshold = config('sentinel.alerts.cpu_usage_percent', 90);
+        $memThreshold = config('sentinel.alerts.memory_usage_percent', 90);
+
+        return (($recentCpu?->utilisation_percent ?? 0) >= $cpuThreshold
+            || ($recentMemory?->usage_percent ?? 0) >= $memThreshold);
+    }
+
     public function updateStatus(): void
     {
-        if ($this->isOnline()) {
-            $this->status = 'online';
-        } else {
+        if (! $this->isOnline()) {
             $this->status = 'offline';
+        } elseif ($this->isDegraded()) {
+            $this->status = 'degraded';
+        } else {
+            $this->status = 'online';
         }
         $this->save();
     }

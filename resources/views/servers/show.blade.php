@@ -91,6 +91,15 @@
         @endforelse
     </div>
 
+    <!-- Network Throughput -->
+    <div class="bg-dashboard-surface rounded-xl border border-dashboard-border p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Network Throughput</h3>
+        <canvas id="networkChart" height="200"></canvas>
+        @if($server->metricsNetwork->isEmpty())
+            <p class="text-dashboard-muted text-sm mt-2">No network data available.</p>
+        @endif
+    </div>
+
     <!-- System Info -->
     <div class="bg-dashboard-surface rounded-xl border border-dashboard-border p-6">
         <h3 class="text-lg font-semibold text-white mb-4">System Information</h3>
@@ -271,6 +280,56 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Network Chart
+    const netCtx = document.getElementById('networkChart');
+    if (netCtx && !@json($server->metricsNetwork->isEmpty())) {
+        const netData = @json($server->metricsNetwork->sortBy('collected_at')->values());
+        new Chart(netCtx, {
+            type: 'line',
+            data: {
+                labels: netData.map(d => d.collected_at instanceof String ? new Date(d.collected_at).toLocaleTimeString() : new Date(d.collected_at).toLocaleTimeString()),
+                datasets: [
+                    {
+                        label: 'RX',
+                        data: netData.map(d => (d.bytes_received || 0) / 1048576),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'TX',
+                        data: netData.map(d => (d.bytes_sent || 0) / 1048576),
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, labels: { color: '#94a3b8' } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + ' MB';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
+                    y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'MB', color: '#94a3b8' } }
+                }
+            }
+        });
+    }
 });
 
 function formatUptime(seconds) {

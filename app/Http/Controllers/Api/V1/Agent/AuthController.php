@@ -17,11 +17,12 @@ class AuthController extends Controller
             'token' => ['required', 'string'],
         ]);
 
+        $prefix = substr($validated['token'], 0, 8);
         $credential = Credential::with('server')
-            ->where('token', $validated['token'])
+            ->where('token_prefix', $prefix)
             ->first();
 
-        if (! $credential || ! $credential->isValid()) {
+        if (! $credential || ! $credential->verifyToken($validated['token'])) {
             return response()->json([
                 'error' => 'Invalid or revoked credentials',
             ], 401);

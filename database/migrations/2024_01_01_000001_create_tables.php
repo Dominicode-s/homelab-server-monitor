@@ -36,13 +36,14 @@ return new class extends Migration {
         Schema::create('credentials', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('server_id')->constrained()->cascadeOnDelete();
-            $table->string('token')->unique();
+            $table->string('token_hash')->unique();
+            $table->string('token_prefix')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->boolean('revoked')->default(false);
             $table->timestamp('revoked_at')->nullable();
             $table->timestamps();
 
-            $table->index(['token']);
+            $table->index('token_hash');
         });
 
         Schema::create('metrics_cpu', function (Blueprint $table): void {

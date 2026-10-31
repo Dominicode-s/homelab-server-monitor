@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/alerts', [AlertController::class, 'index'])->name('alerts.index');
     Route::get('/alerts/{alert}', [AlertController::class, 'show'])->name('alerts.show');
     Route::post('/alerts/{alert}/resolve', [AlertController::class, 'resolve'])->name('alerts.resolve');
+    Route::post('/alerts/rules/{rule}/toggle', [AlertController::class, 'toggleRule'])->name('alerts.toggle-rule');
 
     // Settings
     Route::get('/settings', function () {

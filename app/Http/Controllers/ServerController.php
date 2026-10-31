@@ -20,11 +20,29 @@ class ServerController extends Controller
 {
     public function index(): View
     {
-        $servers = Server::with([
+        $query = Server::with([
             'metricsCpu.latestCpuMetric',
             'metricsMemory.latestMemoryMetric',
             'metricsDisk.latestDiskMetrics',
-        ])->get();
+        ]);
+
+        // Search/filter support
+        $search = request('search');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('hostname', 'like', "%{$search}%")
+                  ->orWhere('friendly_name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Status filter
+        $status = request('status');
+        if (in_array($status, ['online', 'offline', 'degraded'])) {
+            $query->where('status', $status);
+        }
+
+        $servers = $query->orderBy('friendly_name')->get();
 
         return view('servers.index', compact('servers'));
     }
@@ -55,14 +73,11 @@ class ServerController extends Controller
 
         $server = Server::create($validated);
 
-        // Generate credential token
-        Credential::create([
-            'server_id' => $server->id,
-            'token' => Credential::generateToken(),
-        ]);
+        // Generate and return credential token
+        $plainToken = Credential::generateToken();
 
         return redirect()->route('servers.show', $server)
-            ->with('success', 'Server registered successfully.');
+            ->with('success', "Server registered successfully. Token: {$plainToken}");
     }
 
     public function update(Request $request, Server $server): RedirectResponse
@@ -74,7 +89,8 @@ class ServerController extends Controller
 
         $server->update($validated);
 
-        return back()->with('success', 'Server updated successfully.');
+        return redirect()->route('servers.show', $server)
+            ->with('success', 'Server updated successfully.');
     }
 
     public function destroy(Server $server): RedirectResponse
@@ -91,17 +107,11 @@ class ServerController extends Controller
         if ($credential) {
             $credential->revoke();
             // Generate new token
-            Credential::create([
-                'server_id' => $server->id,
-                'token' => Credential::generateToken(),
-            ]);
+            $newToken = Credential::generateToken();
+            return back()->with('success', "Credentials rotated. New token: {$newToken}");
         } else {
-            Credential::create([
-                'server_id' => $server->id,
-                'token' => Credential::generateToken(),
-            ]);
+            Credential::generateToken();
+            return back()->with('success', 'Credentials generated successfully.');
         }
-
-        return back()->with('success', 'Credentials rotated successfully.');
     }
 }

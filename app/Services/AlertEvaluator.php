@@ -8,6 +8,7 @@ use App\Models\AlertRule;
 use App\Models\MetricCpu;
 use App\Models\MetricMemory;
 use App\Models\MetricDisk;
+use App\Models\MonitoredService;
 
 class AlertEvaluator
 {
@@ -19,6 +20,7 @@ class AlertEvaluator
             $this->evaluateCpuAlerts($server);
             $this->evaluateMemoryAlerts($server);
             $this->evaluateDiskAlerts($server);
+            $this->evaluateServiceAlerts($server);
         }
 
         $this->evaluateHostOfflineAlerts($servers);
@@ -161,6 +163,40 @@ class AlertEvaluator
                     'metric_value' => $latest->usage_percent,
                     'threshold' => $threshold,
                 ]);
+            } else {
+                $this->maybeResolveAlert($server, $rule, ['mount_point' => $mountPoint]);
+            }
+        }
+    }
+
+    protected function evaluateServiceAlerts(Server $server): void
+    {
+        $rule = AlertRule::where('type', 'service_down')
+            ->where(function ($q) use ($server) {
+                $q->whereNull('server_id')->orWhere('server_id', $server->id);
+            })
+            ->where('is_enabled', true)
+            ->first();
+
+        if (! $rule) {
+            return;
+        }
+
+        // Get the latest snapshot per service name for this server
+        $latestServices = MonitoredService::where('server_id', $server->id)
+            ->latest('collected_at')
+            ->get()
+            ->groupBy('service_name');
+
+        foreach ($latestServices as $serviceName => $services) {
+            $latest = $services->first();
+            if ($latest && in_array($latest->state, ['failed', 'stopped'])) {
+                $this->triggerOrMaintainAlert($server, $rule, "Service Down: {$serviceName}", [
+                    'service_name' => $serviceName,
+                    'state' => $latest->state,
+                ]);
+            } else {
+                $this->maybeResolveAlert($server, $rule, ['service_name' => $serviceName]);
             }
         }
     }
@@ -223,10 +259,18 @@ class AlertEvaluator
 
     protected function maybeResolveAlert(Server $server, AlertRule $rule, ?array $extraMetadata = null): void
     {
-        $activeAlert = Alert::where('server_id', $server->id)
+        $query = Alert::where('server_id', $server->id)
             ->where('rule_id', $rule->id)
-            ->where('state', 'active')
-            ->first();
+            ->where('state', 'active');
+
+        // Scope resolution by metadata context (mount_point, service_name, etc.)
+        if ($extraMetadata) {
+            foreach ($extraMetadata as $key => $value) {
+                $query->where('metadata->' . $key, $value);
+            }
+        }
+
+        $activeAlert = $query->first();
 
         if ($activeAlert) {
             $activeAlert->resolve();
