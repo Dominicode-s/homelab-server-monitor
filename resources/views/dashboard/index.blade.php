@@ -146,59 +146,310 @@
 </div>
 
 <script>
-// Auto-refresh every 30 seconds — partial DOM updates to preserve Alpine state
-async function refreshDashboard() {
-    try {
-        const response = await fetch('{{ route('dashboard') }}', {
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-        });
-        if (!response.ok) return;
+// Server-Sent Events for real-time dashboard updates
+// Falls back to periodic polling if SSE is unavailable
 
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+let previousSnapshot = null;
+let eventSource = null;
+let pollTimer = null;
 
-        // Update stat numbers
-        const statCards = doc.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
-        const currentCards = document.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
-        statCards.forEach((card, i) => {
-            if (currentCards[i]) {
+/**
+ * Apply a snapshot diff to the DOM.
+ * Compares the new snapshot against the previous one and only
+ * updates elements whose values have actually changed.
+ */
+function applySnapshot(snapshot) {
+    if (!previousSnapshot) {
+        previousSnapshot = snapshot;
+        renderFullSnapshot(snapshot);
+        return;
+    }
+
+    // Update stat numbers (only if changed)
+    const stats = ['total_servers', 'online_servers', 'offline_servers', 'degraded_servers'];
+    stats.forEach((key, index) => {
+        const newVal = snapshot[key];
+        const oldVal = previousSnapshot[key];
+        if (newVal !== oldVal) {
+            const card = document.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div')[index];
+            if (card) {
                 const numEl = card.querySelector('.text-3xl');
-                const currentNum = currentCards[i].querySelector('.text-3xl');
-                if (numEl && currentNum) currentNum.textContent = numEl.textContent.trim();
-            }
-        });
-
-        // Update timestamp
-        const tsEl = doc.querySelector('#last-update');
-        if (tsEl) document.getElementById('last-update').textContent = tsEl.textContent.trim();
-
-        // Update server cards
-        const newServerCards = doc.querySelectorAll('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2 > a');
-        const currentServerCards = document.querySelectorAll('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2 > a');
-        newServerCards.forEach((card, i) => {
-            if (currentServerCards[i]) currentServerCards[i].replaceWith(card.cloneNode(true));
-        });
-
-        // Update recent alerts
-        const newAlerts = doc.querySelectorAll('.p-4.space-y-3 > div');
-        const currentAlerts = document.querySelector('.p-4.space-y-3');
-        if (newAlerts.length > 0 && currentAlerts) {
-            currentAlerts.innerHTML = '';
-            newAlerts.forEach(a => currentAlerts.appendChild(a.cloneNode(true)));
-        } else if (newAlerts.length === 0 && currentAlerts) {
-            const emptyMsg = doc.querySelector('.p-4.space-y-3 p');
-            if (emptyMsg) {
-                currentAlerts.innerHTML = '<p class="text-center py-8 text-dashboard-muted text-sm">No alerts. Everything is healthy!</p>';
+                if (numEl) numEl.textContent = newVal;
             }
         }
+    });
 
-        document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-    } catch (e) {
-        // Silently fail — next interval will retry
+    // Update active alerts badge color
+    const alertCard = document.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div')[3];
+    if (alertCard && snapshot.active_alerts !== previousSnapshot.active_alerts) {
+        const numEl = alertCard.querySelector('.text-3xl');
+        if (numEl) {
+            numEl.textContent = snapshot.active_alerts;
+            numEl.className = 'text-3xl font-bold ' +
+                (snapshot.active_alerts > 0 ? 'text-yellow-400' : 'text-green-400');
+        }
+    }
+
+    // Update server cards
+    updateServerCards(snapshot.servers, previousSnapshot.servers);
+
+    // Update recent alerts
+    updateAlerts(snapshot.alerts, previousSnapshot.alerts);
+
+    // Update timestamp
+    const tsEl = document.getElementById('last-update');
+    if (tsEl) tsEl.textContent = new Date().toLocaleTimeString();
+
+    previousSnapshot = snapshot;
+}
+
+/**
+ * Render a full initial snapshot.
+ */
+function renderFullSnapshot(snapshot) {
+    // Update stat numbers
+    const statValues = [
+        snapshot.total_servers,
+        snapshot.online_servers,
+        snapshot.offline_servers,
+        snapshot.active_alerts
+    ];
+    const statCards = document.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
+    statCards.forEach((card, i) => {
+        const numEl = card.querySelector('.text-3xl');
+        if (numEl) {
+            numEl.textContent = statValues[i];
+            if (i === 3) {
+                numEl.className = 'text-3xl font-bold ' +
+                    (statValues[i] > 0 ? 'text-yellow-400' : 'text-green-400');
+            }
+        }
+    });
+
+    // Update server cards (full render)
+    renderServerCards(snapshot.servers);
+
+    // Update recent alerts (full render)
+    renderAlerts(snapshot.alerts);
+
+    // Update timestamp
+    const tsEl = document.getElementById('last-update');
+    if (tsEl) tsEl.textContent = new Date().toLocaleTimeString();
+}
+
+/**
+ * Update server cards by ID matching.
+ */
+function updateServerCards(newServers, oldServers) {
+    const newMap = new Map(newServers?.map(s => [s.id, s]) || []);
+    const oldMap = new Map(oldServers?.map(s => [s.id, s]) || []);
+
+    // Check for changes
+    let hasChanges = false;
+    newMap.forEach((server, id) => {
+        const oldServer = oldMap.get(id);
+        if (oldServer && JSON.stringify(server) !== JSON.stringify(oldServer)) {
+            hasChanges = true;
+        }
+    });
+
+    if (hasChanges || newServers?.length !== oldServers?.length) {
+        renderServerCards(newServers);
     }
 }
 
-setInterval(refreshDashboard, 30000);
+/**
+ * Render server cards from data.
+ */
+function renderServerCards(servers) {
+    const container = document.querySelector('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2');
+    if (!container || !servers) return;
+
+    const html = servers.slice(0, 4).map(server => {
+        const cpuPercent = server.cpu_percent ?? 0;
+        const memPercent = server.memory_percent ?? 0;
+        const online = server.is_online;
+
+        return `<a href="/servers/${server.id}" class="block p-4 rounded-lg border border-dashboard-border hover:border-primary-500 transition-colors">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="font-medium text-white">${server.friendly_name || server.hostname}</h4>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${online ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5 ${online ? 'bg-green-400' : 'bg-red-400'}"></span>
+                    ${online ? 'Online' : 'Offline'}
+                </span>
+            </div>
+            <div class="space-y-2">
+                <div>
+                    <div class="flex justify-between text-xs text-dashboard-muted mb-1">
+                        <span>CPU</span>
+                        <span>${cpuPercent ? cpuPercent.toFixed(1) + '%' : 'N/A'}</span>
+                    </div>
+                    <div class="w-full bg-dashboard-bg rounded-full h-1.5">
+                        <div class="bg-primary-500 h-1.5 rounded-full ${cpuPercent ? 'transition-all' : ''}" style="width: ${cpuPercent}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs text-dashboard-muted mb-1">
+                        <span>Memory</span>
+                        <span>${memPercent ? memPercent.toFixed(1) + '%' : 'N/A'}</span>
+                    </div>
+                    <div class="w-full bg-dashboard-bg rounded-full h-1.5">
+                        <div class="bg-purple-500 h-1.5 rounded-full ${memPercent ? 'transition-all' : ''}" style="width: ${memPercent}%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3 text-xs text-dashboard-muted">
+                Last seen: ${server.last_seen_at || 'Never'}
+            </div>
+        </a>`;
+    }).join('');
+
+    if (servers.length === 0) {
+        container.innerHTML = '<div class="col-span-2 text-center py-8 text-dashboard-muted">No servers registered yet.</div>';
+    } else {
+        container.innerHTML = html;
+    }
+}
+
+/**
+ * Update alert list by ID matching.
+ */
+function updateAlerts(newAlerts, oldAlerts) {
+    const newIds = new Set(newAlerts?.map(a => a.id) || []);
+    const oldIds = new Set(oldAlerts?.map(a => a.id) || []);
+
+    const hasChanges = newIds.size !== oldIds.size ||
+        [...newIds].some(id => !oldIds.has(id)) ||
+        [...oldIds].some(id => !newIds.has(id));
+
+    if (hasChanges) {
+        renderAlerts(newAlerts);
+    }
+}
+
+/**
+ * Render alerts from data.
+ */
+function renderAlerts(alerts) {
+    const container = document.querySelector('.p-4.space-y-3');
+    if (!container) return;
+
+    if (!alerts || alerts.length === 0) {
+        container.innerHTML = '<p class="text-center py-8 text-dashboard-muted text-sm">No alerts. Everything is healthy!</p>';
+        return;
+    }
+
+    const html = alerts.map(alert => {
+        const isActive = alert.state === 'active';
+        return `<div class="p-3 rounded-lg ${isActive ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30'}">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium ${isActive ? 'text-yellow-300' : 'text-green-300'}">${alert.title}</p>
+                    <p class="text-xs text-dashboard-muted mt-1">
+                        ${alert.server_name}
+                        &middot; ${alert.triggered_at || ''}
+                    </p>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full ${alert.severity === 'critical' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}">
+                    ${alert.severity}
+                </span>
+            </div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = html;
+}
+
+/**
+ * Initialize SSE connection.
+ */
+function initSSE() {
+    const source = new EventSource('/broadcast/events');
+
+    source.addEventListener('connected', function (e) {
+        // Connection established — SSE is working
+        console.log('[Sentinel] SSE connected');
+    });
+
+    source.addEventListener('snapshot', function (e) {
+        try {
+            const snapshot = JSON.parse(e.data);
+            applySnapshot(snapshot);
+        } catch (err) {
+            console.error('[Sentinel] Failed to parse snapshot:', err);
+        }
+    });
+
+    source.onerror = function () {
+        console.warn('[Sentinel] SSE connection failed, falling back to polling');
+        source.close();
+        eventSource = null;
+        startPollingFallback();
+    };
+
+    eventSource = source;
+}
+
+/**
+ * Fallback: periodic AJAX polling if SSE is unavailable.
+ */
+function startPollingFallback() {
+    if (pollTimer) return;
+
+    pollTimer = setInterval(async () => {
+        try {
+            const response = await fetch('/dashboard', {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+            if (!response.ok) return;
+
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Update stat numbers
+            const statCards = doc.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
+            const currentCards = document.querySelectorAll('.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 > div');
+            statCards.forEach((card, i) => {
+                if (currentCards[i]) {
+                    const numEl = card.querySelector('.text-3xl');
+                    const currentNum = currentCards[i].querySelector('.text-3xl');
+                    if (numEl && currentNum) currentNum.textContent = numEl.textContent.trim();
+                }
+            });
+
+            // Update timestamp
+            const tsEl = doc.querySelector('#last-update');
+            if (tsEl) document.getElementById('last-update').textContent = tsEl.textContent.trim();
+
+            // Update server cards
+            const newServerCards = doc.querySelectorAll('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2 > a');
+            const currentServerCards = document.querySelectorAll('.lg\\:col-span-2 .grid-cols-1.md\\:grid-cols-2 > a');
+            newServerCards.forEach((card, i) => {
+                if (currentServerCards[i]) currentServerCards[i].replaceWith(card.cloneNode(true));
+            });
+
+            // Update recent alerts
+            const newAlerts = doc.querySelectorAll('.p-4.space-y-3 > div');
+            const currentAlerts = document.querySelector('.p-4.space-y-3');
+            if (newAlerts.length > 0 && currentAlerts) {
+                currentAlerts.innerHTML = '';
+                newAlerts.forEach(a => currentAlerts.appendChild(a.cloneNode(true)));
+            } else if (newAlerts.length === 0 && currentAlerts) {
+                const emptyMsg = doc.querySelector('.p-4.space-y-3 p');
+                if (emptyMsg) {
+                    currentAlerts.innerHTML = '<p class="text-center py-8 text-dashboard-muted text-sm">No alerts. Everything is healthy!</p>';
+                }
+            }
+
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        } catch (e) {
+            // Silently fail — next interval will retry
+        }
+    }, 30000);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initSSE);
 </script>
 @endsection
