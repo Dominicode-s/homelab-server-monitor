@@ -43,3 +43,6 @@ venv/
 
 # Build artifacts
 /public/build/
+
+# Agent scratch
+.qwen/
