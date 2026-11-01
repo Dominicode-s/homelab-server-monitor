@@ -2,12 +2,151 @@
 
 @section('content')
 <div class="space-y-6" x-data="{
-    refreshInterval: null,
     timeRange: '1h',
     cpuData: @json($server->metricsCpu->sortBy('collected_at')->values()),
     memoryData: @json($server->metricsMemory->sortBy('collected_at')->values()),
     networkData: @json($server->metricsNetwork->sortBy('collected_at')->values()),
-}">
+    cpuChart: null,
+    memoryChart: null,
+    networkChart: null,
+    filteredCpu() {
+        return this.filterByRange(this.cpuData);
+    },
+    filteredMemory() {
+        return this.filterByRange(this.memoryData);
+    },
+    filteredNetwork() {
+        return this.filterByRange(this.networkData);
+    },
+    filterByRange(data) {
+        const cutoff = new Date();
+        if (this.timeRange === '1h') cutoff.setHours(cutoff.getHours() - 1);
+        else if (this.timeRange === '24h') cutoff.setHours(cutoff.getHours() - 24);
+        else if (this.timeRange === '7d') cutoff.setDate(cutoff.getDate() - 7);
+        return data.filter(d => new Date(d.collected_at) >= cutoff);
+    },
+    formatTime(dateStr) {
+        return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    },
+    renderCharts() {
+        this.$nextTick(() => {
+            this.buildCpuChart();
+            this.buildMemoryChart();
+            this.buildNetworkChart();
+        });
+    },
+    buildCpuChart() {
+        const ctx = document.getElementById('cpuChart');
+        if (!ctx) return;
+        if (this.cpuChart) this.cpuChart.destroy();
+        const data = this.filteredCpu;
+        this.cpuChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => this.formatTime(d.collected_at)),
+                datasets: [{
+                    label: 'CPU %',
+                    data: data.map(d => d.utilisation_percent),
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
+                    y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, min: 0, max: 100 }
+                }
+            }
+        });
+    },
+    buildMemoryChart() {
+        const ctx = document.getElementById('memoryChart');
+        if (!ctx) return;
+        if (this.memoryChart) this.memoryChart.destroy();
+        const data = this.filteredMemory;
+        this.memoryChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => this.formatTime(d.collected_at)),
+                datasets: [{
+                    label: 'Memory %',
+                    data: data.map(d => d.usage_percent),
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
+                    y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, min: 0, max: 100 }
+                }
+            }
+        });
+    },
+    buildNetworkChart() {
+        const ctx = document.getElementById('networkChart');
+        if (!ctx) return;
+        if (this.networkChart) this.networkChart.destroy();
+        const data = this.filteredNetwork;
+        if (data.length === 0) return;
+        this.networkChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => this.formatTime(d.collected_at)),
+                datasets: [
+                    {
+                        label: 'RX',
+                        data: data.map(d => (d.bytes_received || 0) / 1048576),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'TX',
+                        data: data.map(d => (d.bytes_sent || 0) / 1048576),
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, labels: { color: '#94a3b8' } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + ' MB';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
+                    y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'MB', color: '#94a3b8' } }
+                }
+            }
+        });
+    }
+}" x-init="renderCharts(); $watch('timeRange', renderCharts)">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
@@ -21,6 +160,9 @@
             <p class="text-sm text-dashboard-muted mt-1">{{ $server->description ?? $server->hostname }}</p>
         </div>
         <div class="flex items-center space-x-3">
+            <button @click="location.reload()" class="text-dashboard-muted hover:text-dashboard-text" title="Refresh page">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
             <a href="{{ route('servers.index') }}" class="text-dashboard-muted hover:text-dashboard-text">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             </a>
@@ -62,13 +204,35 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- CPU Chart -->
         <div class="bg-dashboard-surface rounded-xl border border-dashboard-border p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">CPU Usage</h3>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-white">CPU Usage</h3>
+                <div class="flex space-x-1">
+                    <template x-for="range in ['1h', '24h', '7d']">
+                        <button @click="timeRange = range"
+                            class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+                            :class="timeRange === range ? 'bg-primary-600 text-white' : 'text-dashboard-muted hover:bg-dashboard-border hover:text-dashboard-text'"
+                            x-text="range === '1h' ? '1h' : (range === '24h' ? '24h' : '7d')">
+                        </button>
+                    </template>
+                </div>
+            </div>
             <canvas id="cpuChart" height="200"></canvas>
         </div>
 
         <!-- Memory Chart -->
         <div class="bg-dashboard-surface rounded-xl border border-dashboard-border p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Memory Usage</h3>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-white">Memory Usage</h3>
+                <div class="flex space-x-1">
+                    <template x-for="range in ['1h', '24h', '7d']">
+                        <button @click="timeRange = range"
+                            class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+                            :class="timeRange === range ? 'bg-primary-600 text-white' : 'text-dashboard-muted hover:bg-dashboard-border hover:text-dashboard-text'"
+                            x-text="range === '1h' ? '1h' : (range === '24h' ? '24h' : '7d')">
+                        </button>
+                    </template>
+                </div>
+            </div>
             <canvas id="memoryChart" height="200"></canvas>
         </div>
     </div>
@@ -96,7 +260,18 @@
 
     <!-- Network Throughput -->
     <div class="bg-dashboard-surface rounded-xl border border-dashboard-border p-6">
-        <h3 class="text-lg font-semibold text-white mb-4">Network Throughput</h3>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">Network Throughput</h3>
+            <div class="flex space-x-1">
+                <template x-for="range in ['1h', '24h', '7d']">
+                    <button @click="timeRange = range"
+                        class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
+                        :class="timeRange === range ? 'bg-primary-600 text-white' : 'text-dashboard-muted hover:bg-dashboard-border hover:text-dashboard-text'"
+                        x-text="range === '1h' ? '1h' : (range === '24h' ? '24h' : '7d')">
+                    </button>
+                </template>
+            </div>
+        </div>
         <canvas id="networkChart" height="200"></canvas>
         @if($server->metricsNetwork->isEmpty())
             <p class="text-dashboard-muted text-sm mt-2">No network data available.</p>
@@ -228,127 +403,4 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // CPU Chart
-    const cpuCtx = document.getElementById('cpuChart').getContext('2d');
-    new Chart(cpuCtx, {
-        type: 'line',
-        data: {
-            labels: @json($server->metricsCpu->sortBy('collected_at')->pluck('collected_at')->map(fn($d) => $d instanceof \Carbon\Carbon ? $d->format('H:i') : date('H:i', strtotime($d)))->toArray()),
-            datasets: [{
-                label: 'CPU %',
-                data: @json($server->metricsCpu->sortBy('collected_at')->pluck('utilisation_percent')->toArray()),
-                borderColor: '#0ea5e9',
-                backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
-                y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, min: 0, max: 100 }
-            }
-        }
-    });
-
-    // Memory Chart
-    const memCtx = document.getElementById('memoryChart').getContext('2d');
-    new Chart(memCtx, {
-        type: 'line',
-        data: {
-            labels: @json($server->metricsMemory->sortBy('collected_at')->pluck('collected_at')->map(fn($d) => $d instanceof \Carbon\Carbon ? $d->format('H:i') : date('H:i', strtotime($d)))->toArray()),
-            datasets: [{
-                label: 'Memory %',
-                data: @json($server->metricsMemory->sortBy('collected_at')->pluck('usage_percent')->toArray()),
-                borderColor: '#a855f7',
-                backgroundColor: 'rgba(168, 85, 247, 0.1)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
-                y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, min: 0, max: 100 }
-            }
-        }
-    });
-
-    // Network Chart
-    const netCtx = document.getElementById('networkChart');
-    if (netCtx && !@json($server->metricsNetwork->isEmpty())) {
-        const netData = @json($server->metricsNetwork->sortBy('collected_at')->values());
-        new Chart(netCtx, {
-            type: 'line',
-            data: {
-                labels: netData.map(d => d.collected_at instanceof String ? new Date(d.collected_at).toLocaleTimeString() : new Date(d.collected_at).toLocaleTimeString()),
-                datasets: [
-                    {
-                        label: 'RX',
-                        data: netData.map(d => (d.bytes_received || 0) / 1048576),
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 0,
-                    },
-                    {
-                        label: 'TX',
-                        data: netData.map(d => (d.bytes_sent || 0) / 1048576),
-                        borderColor: '#0ea5e9',
-                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 0,
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: true, labels: { color: '#94a3b8' } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + ' MB';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8', maxTicksLimit: 6 } },
-                    y: { display: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'MB', color: '#94a3b8' } }
-                }
-            }
-        });
-    }
-});
-
-function formatUptime(seconds) {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    return days > 0 ? `${days}d ${hours}h` : `${hours}h ${Math.floor((seconds % 3600) / 60)}m`;
-}
-
-function formatBytes(bytes) {
-    if (!bytes) return 'N/A';
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
-}
-
-window.formatUptime = formatUptime;
-window.formatBytes = formatBytes;
-</script>
 @endsection
