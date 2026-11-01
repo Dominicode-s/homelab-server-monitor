@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\AlertController;
@@ -15,6 +16,10 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name
 
 // Authentication routes
 Route::middleware('auth')->group(function (): void {
+    // Real-time dashboard updates via Server-Sent Events
+    Route::get('/broadcast/events', [BroadcastController::class, 'events'])
+        ->name('broadcast.events');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Server management
