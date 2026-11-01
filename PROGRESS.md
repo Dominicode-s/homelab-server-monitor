@@ -181,6 +181,19 @@ Fixed 5 issues preventing Docker deployment:
 8. **Bootstrap/cache directory**: Composer install failed because bootstrap/cache didn't exist. Reordered Dockerfile to create dirs before composer install.
 
 ## Recent Improvements (Post-Completion)
+### Server-Sent Events for Real-Time Dashboard
+Replaced `setInterval` AJAX polling with Server-Sent Events (SSE) for near real-time dashboard updates. The client opens an `EventSource` that receives JSON snapshots from the server at ~1/3 of the agent reporting interval. A snapshot diffing algorithm minimizes DOM updates by only changing elements whose values have actually changed. Falls back to the original 30s polling if SSE is unavailable.
+
+**Why SSE over WebSockets:** For a homelab dashboard (5–20 servers, server-to-client only), SSE is simpler — no external dependencies, native browser API, auto-reconnect via EventSource, works through proxies, and graceful degradation to polling.
+
+**Files changed:**
+- `app/Http/Controllers/BroadcastController.php` — New SSE endpoint streaming JSON snapshots
+- `routes/web.php` — Added `/broadcast/events` route under auth middleware
+- `resources/views/dashboard/index.blade.php` — Replaced setInterval with EventSource client, snapshot diffing, AJAX fallback
+- `docker/nginx/default.conf` — Added SSE location block with `fastcgi_buffering off`
+- `database/factories/AlertFactory.php` — New factory for Alert model
+- `tests/Feature/BroadcastTest.php` — 6 tests (auth, headers, snapshot content)
+
 ### Time-Range Selector for Charts
 Charts on the server detail page now include time-range selector buttons (1h/24h/7d) that filter metrics client-side using Alpine.js. All metric data loads into the view and filters based on selected range. Charts rebuild with filtered data when range changes. Also adds a manual refresh button in the server detail header.
 
@@ -197,10 +210,10 @@ Full theme system using CSS custom properties on the html element. Toggling `cla
 - `resources/views/auth/login.blade.php` — Added theme support with CSS variables
 
 ## Recommended Next Improvements
-1. Add WebSocket support for real-time dashboard updates (currently polling)
+1. ~~Add WebSocket support for real-time dashboard updates (currently polling)~~ ✅ Implemented via SSE (`feat/server-sse-for-real-time-dashboard`)
 2. Implement metric aggregation/hourly averages for long-term storage efficiency
 3. Add email notification integration for alerts
-4. Add CSV export for historical metrics
+4. ~~CSV export for historical metrics~~ ✅ Already implemented
 5. Implement user roles (admin vs read-only viewer)
 6. Add API key management with expiration dates
 7. Implement rate limiting with Redis for multi-server deployments
