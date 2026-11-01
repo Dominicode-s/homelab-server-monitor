@@ -180,6 +180,22 @@ Fixed 5 issues preventing Docker deployment:
 7. **Database file missing**: Volume mount `./storage/database/` was empty on host. Created `database.sqlite` file on host.
 8. **Bootstrap/cache directory**: Composer install failed because bootstrap/cache didn't exist. Reordered Dockerfile to create dirs before composer install.
 
+## Recent Improvements (Post-Completion)
+### Time-Range Selector for Charts
+Charts on the server detail page now include time-range selector buttons (1h/24h/7d) that filter metrics client-side using Alpine.js. All metric data loads into the view and filters based on selected range. Charts rebuild with filtered data when range changes. Also adds a manual refresh button in the server detail header.
+
+**Files changed:**
+- `resources/views/servers/show.blade.php` — Added Alpine.js time-range component, chart filtering, refresh button
+
+### Dark/Light Theme Toggle
+Full theme system using CSS custom properties on the html element. Toggling `class="dark"` switches all dashboard color variables simultaneously. Sidebar includes sun/moon toggle button. Preference persisted in localStorage. Login page also supports theme switching.
+
+**Files changed:**
+- `tailwind.config.js` — Added `dashboardLight` color palette
+- `resources/css/app.css` — Added CSS custom properties (--ds-bg, --ds-surface, etc.) with `.dark` overrides; global `.text-white` theme adaptation rule
+- `resources/views/layouts/app.blade.php` — Added Alpine.js theme toggle, CSS variable-based colors, theme toggle button in sidebar
+- `resources/views/auth/login.blade.php` — Added theme support with CSS variables
+
 ## Recommended Next Improvements
 1. Add WebSocket support for real-time dashboard updates (currently polling)
 2. Implement metric aggregation/hourly averages for long-term storage efficiency
@@ -189,5 +205,3 @@ Fixed 5 issues preventing Docker deployment:
 6. Add API key management with expiration dates
 7. Implement rate limiting with Redis for multi-server deployments
 8. Add Grafana datasource integration (InfluxDB exporter)
-9. Implement dark/light theme toggle
-10. Add historical time-range selector for charts (1h/24h/7d)
