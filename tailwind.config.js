@@ -27,6 +27,13 @@ export default {
                     border: '#334155',
                     text: '#e2e8f0',
                     muted: '#94a3b8',
+                },
+                dashboardLight: {
+                    bg: '#f1f5f9',
+                    surface: '#ffffff',
+                    border: '#e2e8f0',
+                    text: '#1e293b',
+                    muted: '#64748b',
                 }
             },
             fontFamily: {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" x-data="{ darkMode: localStorage.getItem('theme') === 'dark' }" x-init="$watch('darkMode', val => { if (val) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('theme', val ? 'dark' : 'light'); })">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,20 +13,20 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-dashboard-bg text-dashboard-text font-sans antialiased flex items-center justify-center min-h-screen">
+<body class="bg-[var(--ds-bg)] text-[var(--ds-text)] font-sans antialiased flex items-center justify-center min-h-screen">
     <div class="w-full max-w-md p-8">
         <div class="text-center mb-8">
             <h1 class="text-2xl font-bold text-white">{{ config('app.name', 'Homelab Sentinel') }}</h1>
-            <p class="text-dashboard-muted mt-2">Sign in to your dashboard</p>
+            <p class="text-[var(--ds-muted)] mt-2">Sign in to your dashboard</p>
         </div>
 
         <form method="POST" action="{{ route('login') }}" class="space-y-6">
             @csrf
 
             <div>
-                <label for="email" class="block text-sm font-medium text-dashboard-muted mb-1">Email</label>
+                <label for="email" class="block text-sm font-medium text-[var(--ds-muted)] mb-1">Email</label>
                 <input type="email" name="email" id="email" required
-                    class="w-full px-3 py-2 bg-dashboard-surface border border-dashboard-border rounded-lg text-dashboard-text placeholder-dashboard-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    class="w-full px-3 py-2 bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-lg text-[var(--ds-text)] placeholder-[var(--ds-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     value="{{ old('email') }}" autofocus>
                 @error('email')
                     <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
@@ -34,9 +34,9 @@
             </div>
 
             <div>
-                <label for="password" class="block text-sm font-medium text-dashboard-muted mb-1">Password</label>
+                <label for="password" class="block text-sm font-medium text-[var(--ds-muted)] mb-1">Password</label>
                 <input type="password" name="password" id="password" required
-                    class="w-full px-3 py-2 bg-dashboard-surface border border-dashboard-border rounded-lg text-dashboard-text placeholder-dashboard-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    class="w-full px-3 py-2 bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded-lg text-[var(--ds-text)] placeholder-[var(--ds-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 @error('password')
                     <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
                 @enderror
@@ -44,8 +44,8 @@
 
             <div class="flex items-center justify-between">
                 <label class="flex items-center">
-                    <input type="checkbox" name="remember" class="mr-2 rounded border-dashboard-border text-primary-600 focus:ring-primary-500">
-                    <span class="text-sm text-dashboard-muted">Remember me</span>
+                    <input type="checkbox" name="remember" class="mr-2 rounded border-[var(--ds-border)] text-primary-600 focus:ring-primary-500">
+                    <span class="text-sm text-[var(--ds-muted)]">Remember me</span>
                 </label>
             </div>
 
