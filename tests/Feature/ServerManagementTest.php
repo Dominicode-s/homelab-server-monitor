@@ -6,7 +6,13 @@ use Tests\TestCase;
 use App\Models\Admin;
 use App\Models\Server;
 use App\Models\Credential;
+use App\Models\MetricCpu;
+use App\Models\MetricMemory;
+use App\Models\MetricDisk;
+use App\Models\MetricNetwork;
+use App\Models\MetricSystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 class ServerManagementTest extends TestCase
 {
@@ -118,5 +124,46 @@ class ServerManagementTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewHas('server', $server);
+    }
+
+    public function test_csv_export_returns_success_with_empty_data(): void
+    {
+        $this->authenticate();
+        $server = Server::factory()->create(['hostname' => 'export-test']);
+
+        $response = $this->get(route('servers.export-csv', $server));
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $response->assertHeader('Content-Disposition', 'attachment; filename="export_test-metrics-' . now()->format('Y-m-d') . '.csv"');
+    }
+
+    public function test_csv_export_includes_all_metric_sections(): void
+    {
+        $this->authenticate();
+        Carbon::setTestNow(Carbon::parse('2026-11-01 12:00:00'));
+        $server = Server::factory()->create(['hostname' => 'data-server']);
+
+        MetricCpu::create(['server_id' => $server->id, 'collected_at' => now()->subHour(), 'utilisation_percent' => 45.5, 'core_count' => 4]);
+        MetricMemory::create(['server_id' => $server->id, 'collected_at' => now()->subHour(), 'usage_percent' => 62.3, 'total_bytes' => 8589934592, 'used_bytes' => 5368709120]);
+        MetricDisk::create(['server_id' => $server->id, 'collected_at' => now()->subHour(), 'mount_point' => '/', 'total_bytes' => 107374182400, 'used_bytes' => 53687091200]);
+        MetricNetwork::create(['server_id' => $server->id, 'collected_at' => now()->subHour(), 'interface_name' => 'eth0', 'bytes_sent' => 1000, 'bytes_received' => 2000]);
+        MetricSystem::create(['server_id' => $server->id, 'collected_at' => now()->subHour(), 'uptime_seconds' => 86400]);
+
+        $response = $this->get(route('servers.export-csv', $server));
+
+        $content = $response->streamedString;
+        $this->assertStringContainsString('# CPU Usage', $content);
+        $this->assertStringContainsString('# Memory Usage', $content);
+        $this->assertStringContainsString('# Disk Usage', $content);
+        $this->assertStringContainsString('# Network Throughput', $content);
+        $this->assertStringContainsString('# System Uptime', $content);
+        $this->assertStringContainsString('45.5', $content);
+        $this->assertStringContainsString('62.3', $content);
+        $this->assertStringContainsString('/', $content);
+        $this->assertStringContainsString('eth0', $content);
+        $this->assertStringContainsString('86400', $content);
+
+        Carbon::setTestNow();
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 use App\Models\Server;
 use App\Models\Credential;
@@ -99,6 +100,62 @@ class ServerController extends Controller
 
         return redirect()->route('servers.index')
             ->with('success', 'Server removed successfully.');
+    }
+
+    public function exportCsv(Server $server): Response
+    {
+        $cpu = $server->metricsCpu()->orderBy('collected_at')->get();
+        $memory = $server->metricsMemory()->orderBy('collected_at')->get();
+        $disk = $server->metricsDisk()->orderBy('collected_at')->get();
+        $network = $server->metricsNetwork()->orderBy('collected_at')->get();
+        $system = $server->metricsSystem()->orderBy('collected_at')->get();
+
+        $filename = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $server->hostname)) . '-metrics-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($cpu, $memory, $disk, $network, $system) {
+            $fp = fopen('php://output', 'w');
+
+            // CPU section
+            fputcsv($fp, ['# CPU Usage']);
+            fputcsv($fp, ['collected_at', 'utilisation_percent', 'core_count', 'load_1m', 'load_5m', 'load_15m', 'temperature_celsius']);
+            foreach ($cpu as $row) {
+                fputcsv($fp, [$row->collected_at, $row->utilisation_percent, $row->core_count, $row->load_1m, $row->load_5m, $row->load_15m, $row->temperature_celsius]);
+            }
+            fputcsv($fp, []);
+
+            // Memory section
+            fputcsv($fp, ['# Memory Usage']);
+            fputcsv($fp, ['collected_at', 'total_bytes', 'used_bytes', 'usage_percent', 'swap_total_bytes', 'swap_used_bytes', 'swap_usage_percent']);
+            foreach ($memory as $row) {
+                fputcsv($fp, [$row->collected_at, $row->total_bytes, $row->used_bytes, $row->usage_percent, $row->swap_total_bytes, $row->swap_used_bytes, $row->swap_usage_percent]);
+            }
+            fputcsv($fp, []);
+
+            // Disk section
+            fputcsv($fp, ['# Disk Usage']);
+            fputcsv($fp, ['collected_at', 'mount_point', 'total_bytes', 'used_bytes', 'usage_percent']);
+            foreach ($disk as $row) {
+                fputcsv($fp, [$row->collected_at, $row->mount_point, $row->total_bytes, $row->used_bytes, $row->usage_percent]);
+            }
+            fputcsv($fp, []);
+
+            // Network section
+            fputcsv($fp, ['# Network Throughput']);
+            fputcsv($fp, ['collected_at', 'interface_name', 'bytes_sent', 'bytes_received', 'status']);
+            foreach ($network as $row) {
+                fputcsv($fp, [$row->collected_at, $row->interface_name, $row->bytes_sent, $row->bytes_received, $row->status]);
+            }
+            fputcsv($fp, []);
+
+            // System section
+            fputcsv($fp, ['# System Uptime']);
+            fputcsv($fp, ['collected_at', 'uptime_seconds']);
+            foreach ($system as $row) {
+                fputcsv($fp, [$row->collected_at, $row->uptime_seconds]);
+            }
+
+            fclose($fp);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function toggleCredential(Server $server): RedirectResponse
