@@ -3,26 +3,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
+/* Theme variables — default (light mode) */
+html {
+    --ds-bg: #f1f5f9;
+    --ds-surface: #ffffff;
+    --ds-border: #e2e8f0;
+    --ds-text: #1e293b;
+    --ds-muted: #64748b;
+}
+
+/* Dark mode overrides */
+html.dark {
+    --ds-bg: #0f172a;
+    --ds-surface: #1e293b;
+    --ds-border: #334155;
+    --ds-text: #e2e8f0;
+    --ds-muted: #94a3b8;
+}
+
+/* Base styles using theme variables */
 @layer base {
     body {
-        @apply bg-dashboard-bg text-dashboard-text antialiased;
+        @apply bg-[var(--ds-bg)] text-[var(--ds-text)] antialiased;
     }
 }
 
-/* Custom scrollbar */
+/* Dashboard color utility classes using theme variables */
 @layer components {
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-        @apply bg-dashboard-bg;
-    }
-    ::-webkit-scrollbar-thumb {
-        @apply bg-dashboard-border rounded;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        @apply bg-dashboard-muted;
+    .bg-dashboard-bg { background-color: var(--ds-bg); }
+    .bg-dashboard-surface { background-color: var(--ds-surface); }
+    .border-dashboard-border { border-color: var(--ds-border); }
+    .text-dashboard-text { color: var(--ds-text); }
+    .text-dashboard-muted { color: var(--ds-muted); }
+
+    /* Make text-white adapt to theme — white in dark mode, dashboard text in light */
+    .text-white {
+        @apply dark:text-white text-dashboard-text;
     }
 }
