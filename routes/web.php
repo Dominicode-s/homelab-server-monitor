@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function (): void {
     // Server management
     Route::resource('servers', ServerController::class)->except(['show']);
     Route::get('/servers/{server}', [ServerController::class, 'show'])->name('servers.show');
+    Route::get('/servers/{server}/export-csv', [ServerController::class, 'exportCsv'])->name('servers.export-csv');
 
     // Alerts
     Route::get('/alerts', [AlertController::class, 'index'])->name('alerts.index');
