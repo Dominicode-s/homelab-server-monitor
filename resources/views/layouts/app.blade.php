@@ -20,7 +20,7 @@
         <!-- Sidebar -->
         <aside class="w-64 bg-[var(--ds-surface)] border-r border-[var(--ds-border)] flex flex-col">
             <div class="p-6 border-b border-[var(--ds-border)]">
-                <h1 class="text-xl font-bold text-white">Sentinel</h1>
+                <h1 class="text-xl font-bold dark:text-white text-dashboard-text">Sentinel</h1>
                 <p class="text-xs text-[var(--ds-muted)] mt-1">Homelab Monitoring</p>
             </div>
 
@@ -66,7 +66,7 @@
                         </div>
                     </div>
                     <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium text-white">{{ auth()->user()->name ?? auth()->user()->email }}</p>
+                        <p class="text-sm font-medium dark:text-white text-dashboard-text">{{ auth()->user()->name ?? auth()->user()->email }}</p>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="text-xs text-[var(--ds-muted)] hover:text-[var(--ds-text)] mt-1">Logout</button>

@@ -35,4 +35,9 @@ html.dark {
     .border-dashboard-border { border-color: var(--ds-border); }
     .text-dashboard-text { color: var(--ds-text); }
     .text-dashboard-muted { color: var(--ds-muted); }
+
+    /* Make text-white adapt to theme — white in dark mode, dashboard text in light */
+    .text-white {
+        @apply dark:text-white text-dashboard-text;
+    }
 }
