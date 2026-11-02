@@ -53,10 +53,10 @@ All 6 milestones complete and merged to `main`. Two recent improvements are on b
 - Theme uses CSS custom properties (`--ds-bg`, `--ds-surface`, etc.) with `.dark` class toggle
 
 ## Recommended Next Improvements
-1. WebSocket support for real-time updates (currently polling)
-2. Metric aggregation/hourly averages for long-term storage
-3. Email notification integration for alerts
-4. CSV export for historical metrics
+1. ~~WebSocket support for real-time updates (currently polling)~~ ✅ Implemented via SSE
+2. ~~Metric aggregation/hourly averages for long-term storage~~ ✅ Implemented
+3. ~~Email notification integration for alerts~~ ✅ Implemented
+4. ~~CSV export for historical metrics~~ ✅ Already implemented
 5. User roles (admin vs read-only viewer)
 6. API key management with expiration dates
 7. Rate limiting with Redis for multi-server deployments
