@@ -34,6 +34,22 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+        // Evaluate alert rules every 5 minutes
+        $schedule->command('sentinel:evaluate-alerts')->everyFiveMinutes();
+
+        // Send email notifications for new alerts every 5 minutes
+        $schedule->command('sentinel:notify-admins')->everyFiveMinutes();
+
+        // Check for offline servers every minute
+        $schedule->command('sentinel:check-offline')->everyMinute();
+
+        // Aggregate detailed metrics into hourly averages
+        $schedule->command('sentinel:aggregate-metrics')->hourly();
+
+        // Clean up old metrics daily
+        $schedule->command('sentinel:cleanup-metrics')->daily();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
             'api/v1/*',

@@ -28,4 +28,8 @@ return [
         'disk_usage_percent' => 85,
         'host_offline_minutes' => 2,
     ],
+    'notifications' => [
+        'admin_email' => env('SENTINEL_ADMIN_EMAIL'),
+        'enabled' => (bool) env('SENTINEL_NOTIFICATIONS_ENABLED', false),
+    ],
 ];
