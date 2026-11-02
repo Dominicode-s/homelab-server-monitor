@@ -20,10 +20,12 @@ class Alert extends Model
         'metadata',
         'triggered_at',
         'resolved_at',
+        'notification_channels',
     ];
 
     protected $casts = [
         'metadata' => 'array',
+        'notification_channels' => 'array',
         'triggered_at' => 'datetime',
         'resolved_at' => 'datetime',
     ];

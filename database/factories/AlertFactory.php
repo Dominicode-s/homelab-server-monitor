@@ -19,6 +19,7 @@ class AlertFactory extends Factory
             'severity' => $this->faker->randomElement(['warning', 'critical']),
             'state' => $this->faker->randomElement(['active', 'resolved']),
             'metadata' => [],
+            'notification_channels' => null,
             'triggered_at' => now()->subMinutes($this->faker->numberBetween(1, 120)),
             'resolved_at' => null,
         ];
