@@ -1,7 +1,7 @@
 {
     "name": "homelab/sentinel",
     "type": "project",
-    "description": "Homelab Sentinel — Autonomous Linux Server Monitoring Platform",
+    "description": "Homelab Sentinel — Self-hosted Linux Server Monitoring Platform",
     "license": "MIT",
     "require": {
         "php": "^8.3",

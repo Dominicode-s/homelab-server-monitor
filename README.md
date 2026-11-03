@@ -1,6 +1,6 @@
 # Homelab Sentinel
 
-Autonomous Linux Server Monitoring Platform
+Self-hosted Linux Server Monitoring Platform
 
 A self-hosted monitoring solution consisting of a Laravel-based web dashboard and lightweight Python agents that collect and report system metrics from your homelab servers.
 

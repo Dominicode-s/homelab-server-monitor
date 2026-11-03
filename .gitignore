@@ -45,4 +45,3 @@ venv/
 /public/build/
 
 # Agent scratch
-.qwen/
